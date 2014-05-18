@@ -1,20 +1,130 @@
+```{r echo=FALSE}
+options(scipen=999)
+opts_chunk$set(comment=NA, fig.width=12, fig.height=6)
+```
 # Reproducible Research: Peer Assessment 1
 
 
 ## Loading and preprocessing the data
-
-
+```{r echo=TRUE}
+# Load the data with their associated column type
+data <- read.csv("activity.csv", header=TRUE, colClasses=c("numeric", "Date", "factor"), stringsAsFactors=FALSE)
+str(data)
+summary(data)
+```
 
 ## What is mean total number of steps taken per day?
+```{r echo=TRUE}
+# Clean NA rows
+dataClean <- data[!is.na(data$steps), ]
 
+stepsByDay <- function(stepData) {
+    tData <- aggregate(stepData$steps, by=list(stepData$date), sum, na.rm=TRUE)
+    colnames(tData) <- c("date", "steps")
+    tData
+}
 
+tData <- stepsByDay(dataClean)
+head(tData)
+meanStepsByDay <- mean(tData$steps)
+medianStepsByDay <- median(tData$steps)
+```
+The **mean** number of steps taken per day are; `r meanStepsByDay`  
+The **median** number of steps taken per day are; `r medianStepsByDay`
+
+In a graph:
+
+```{r echo=TRUE}
+
+plotData <- function(stepData) {
+    par(mfrow=c(1,2))
+    hist(stepData$steps, xlab="Steps", main="Steps per day Histogram", breaks=10)
+    barplot.default(stepData$steps, names.arg=stepData$date, main="Steps per day", ylab="Steps", xlab="Day" )
+    abline(h=meanStepsByDay)
+    abline(h=medianStepsByDay)    
+}
+
+plotData(tData)
+```
 
 ## What is the average daily activity pattern?
-
-
+```{r echo=TRUE}
+tData <- aggregate(list("Steps Mean"=dataClean$steps), by=list(interval=dataClean$interval), mean)
+# Convert to numeric for plotting
+tData$interval <- as.integer(levels(tData$interval))
+tData <- tData[order(tData$interval),]
+max <- tData[which.max(tData$Steps.Mean), ]
+plot(tData$interval, tData$Steps.Mean, type="l", xlab="Interval", ylab="Mean Step", main="Mean steps by interval", col="blue")
+abline(v=max[1, "interval"], col="red")
+legend('topright', c("Steps", "Maximun"), lty=c(1,1), col=c("blue","red"))
+```
+The maximun activity happens in interval **`r max[1, "interval"]`** with **`r max[1, "Steps.Mean"]` steps**
 
 ## Imputing missing values
+```{r echo=TRUE}
+na_idx <- which(is.na(data$steps))
+na_replacements <- unlist(lapply(na_idx, FUN = function(idx) {
+    interval = data[idx, ]$interval
+    tData[tData$interval == interval, ]$Steps.Mean
+}))
 
+tData <- data
+tData$steps[na_idx] <- na_replacements
+summary(tData)
 
+tData <- stepsByDay(tData)
+
+plotData(tData)
+
+meanStepsByDayRep <- mean(tData$steps)
+medianStepsByDayRep <- median(tData$steps)
+```
+
+The **mean** number of steps taken per day are; `r meanStepsByDayRep`  
+The **median** number of steps taken per day are; `r medianStepsByDayRep`
+
+In a graph:
+
+```{r echo=TRUE}
+plotData(tData)
+```
+```{r echo=TRUE}
+tData <- data.frame("Original"=c(meanStepsByDay, medianStepsByDay), "Replaced"=c(meanStepsByDayRep, medianStepsByDayRep))
+tData$Original <- format(tData$Original, , nsmall = 3)
+tData$Replaced <- format(tData$Replaced, , nsmall = 3)
+rownames(tData) <- c("mean", "median")
+tData
+
+```
+So, updating NA values with the interval median steps keep main unchanged while increasing the median to be equal to the mean.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r echo=TRUE}
+tData2 <- dataClean
+tData2$weekday <- as.factor(weekdays(tData2$date))
+
+weekend <- subset(tData2, weekday %in% c("Saturday", "Sunday"))
+weekday <- subset(tData2, !weekday %in% c("Saturday", "Sunday"))
+
+weekend_spi <- aggregate(list("Steps Mean"=weekend$steps), by=list(interval=weekend$interval), mean, na.rm=TRUE)
+weekday_spi <- aggregate(list("Steps Mean"=weekday$steps), by=list(interval=weekday$interval), mean, na.rm=TRUE)
+
+weekend_spi$interval <- as.integer(levels(weekend_spi$interval))
+weekday_spi$interval <- as.integer(levels(weekday_spi$interval))
+
+weekend_spi <- weekend_spi[order(weekend_spi$interval),]
+weekday_spi <- weekday_spi[order(weekday_spi$interval),]
+
+weekend_spi$dayofweek <- rep("WeekEnd", nrow(weekend_spi))
+weekday_spi$dayofweek <- rep("WeekDay", nrow(weekday_spi))
+
+tData <- rbind(weekend_spi, weekday_spi)
+tData$dayofweek <- as.factor(tData$dayofweek)
+
+par(mfrow=c(1,2))
+plot(weekend_spi$interval, weekend_spi$Steps.Mean, type="l", xlab="Interval", ylab="Mean Step", main="Weekend", col="blue")
+plot(weekday_spi$interval, weekday_spi$Steps.Mean, type="l", xlab="Interval", ylab="Mean Step", main="Weekday", col="blue")
+
+```
+As we can see in the figures, the activity is greater in weekends going on through most of the day intervals.
