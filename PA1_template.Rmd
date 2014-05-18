@@ -18,6 +18,7 @@ summary(data)
 # Clean NA rows
 dataClean <- data[!is.na(data$steps), ]
 
+# Returns data aggregated by date
 stepsByDay <- function(stepData) {
     tData <- aggregate(stepData$steps, by=list(stepData$date), sum, na.rm=TRUE)
     colnames(tData) <- c("date", "steps")
@@ -26,6 +27,7 @@ stepsByDay <- function(stepData) {
 
 tData <- stepsByDay(dataClean)
 head(tData)
+
 meanStepsByDay <- mean(tData$steps)
 medianStepsByDay <- median(tData$steps)
 ```
@@ -50,10 +52,13 @@ plotData(tData)
 ## What is the average daily activity pattern?
 ```{r echo=TRUE}
 tData <- aggregate(list("Steps Mean"=dataClean$steps), by=list(interval=dataClean$interval), mean)
-# Convert to numeric for plotting
+
+# Convert to numeric and sort it for plotting
 tData$interval <- as.integer(levels(tData$interval))
 tData <- tData[order(tData$interval),]
+
 max <- tData[which.max(tData$Steps.Mean), ]
+
 plot(tData$interval, tData$Steps.Mean, type="l", xlab="Interval", ylab="Mean Step", main="Mean steps by interval", col="blue")
 abline(v=max[1, "interval"], col="red")
 legend('topright', c("Steps", "Maximun"), lty=c(1,1), col=c("blue","red"))
@@ -62,18 +67,22 @@ The maximun activity happens in interval **`r max[1, "interval"]`** with **`r ma
 
 ## Imputing missing values
 ```{r echo=TRUE}
+# Vector with indexes for rows with NA. NA are only in 'steps'
 na_idx <- which(is.na(data$steps))
+# Calculation of replacement values to substitute NA values.
 na_replacements <- unlist(lapply(na_idx, FUN = function(idx) {
     interval = data[idx, ]$interval
     tData[tData$interval == interval, ]$Steps.Mean
 }))
 
+
 tData <- data
+# NA substitution
 tData$steps[na_idx] <- na_replacements
+
 summary(tData)
 
 tData <- stepsByDay(tData)
-
 plotData(tData)
 
 meanStepsByDayRep <- mean(tData$steps)
@@ -102,6 +111,7 @@ So, updating NA values with the interval median steps keep main unchanged while 
 
 ```{r echo=TRUE}
 tData2 <- dataClean
+# Add a column for the weekday
 tData2$weekday <- as.factor(weekdays(tData2$date))
 
 weekend <- subset(tData2, weekday %in% c("Saturday", "Sunday"))
@@ -115,12 +125,6 @@ weekday_spi$interval <- as.integer(levels(weekday_spi$interval))
 
 weekend_spi <- weekend_spi[order(weekend_spi$interval),]
 weekday_spi <- weekday_spi[order(weekday_spi$interval),]
-
-weekend_spi$dayofweek <- rep("WeekEnd", nrow(weekend_spi))
-weekday_spi$dayofweek <- rep("WeekDay", nrow(weekday_spi))
-
-tData <- rbind(weekend_spi, weekday_spi)
-tData$dayofweek <- as.factor(tData$dayofweek)
 
 par(mfrow=c(1,2))
 plot(weekend_spi$interval, weekend_spi$Steps.Mean, type="l", xlab="Interval", ylab="Mean Step", main="Weekend", col="blue")
