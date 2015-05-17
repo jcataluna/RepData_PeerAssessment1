@@ -1,4 +1,5 @@
 ```{r echo=FALSE}
+library(knitr)
 options(scipen=999)
 opts_chunk$set(comment=NA, fig.width=12, fig.height=6)
 ```
@@ -8,7 +9,17 @@ opts_chunk$set(comment=NA, fig.width=12, fig.height=6)
 ## Loading and preprocessing the data
 ```{r echo=TRUE}
 # Load the data with their associated column type
-data <- read.csv("activity.csv", header=TRUE, colClasses=c("numeric", "Date", "factor"), stringsAsFactors=FALSE)
+# download and read the data, convert columns for convenience
+read_data <- function() {
+    fname = "repdata-data-activity.zip"
+    source_url = "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+    if(!file.exists(fname)) {
+        download.file(source_url, destfile=fname, method="curl")
+    }
+    con <- unz(fname, "activity.csv")
+    tbl <- read.csv(con, header=T, colClasses=c("numeric", "Date", "factor"))
+}
+data <- read_data()
 str(data)
 summary(data)
 ```
@@ -17,6 +28,8 @@ summary(data)
 ```{r echo=TRUE}
 # Clean NA rows
 dataClean <- data[!is.na(data$steps), ]
+str(dataClean)
+summary(dataClean)
 
 # Returns data aggregated by date
 stepsByDay <- function(stepData) {
